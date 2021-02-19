@@ -15,6 +15,7 @@ import com.example.covid19tracker.MainActivity;
 import com.example.covid19tracker.Model.Country;
 import com.example.covid19tracker.R;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CountryListFragment extends Fragment {
@@ -31,7 +32,7 @@ public class CountryListFragment extends Fragment {
     }
 
     public CountryListFragment(List<Country> countryList){
-        this.countryList = countryList;
+        this.countryList = new ArrayList<>(countryList);
     }
 
 
@@ -60,6 +61,14 @@ public class CountryListFragment extends Fragment {
             this.countryName =countryName1;
             covidRecycleAdapter.setCountryName(this.countryName);
         }
+    }
+
+    public void setProperData(List<Country> countryList){
+        covidRecycleAdapter.setProperData(countryList);
+    }
+
+    public void searchViewSetter(String queryString){
+        covidRecycleAdapter.getFilter().filter(queryString);
     }
 
     public void setCountryList(List<Country> countryList1){

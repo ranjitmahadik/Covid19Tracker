@@ -59,6 +59,7 @@ public class FilterFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
+
         View currentView = inflater.inflate(R.layout.fragment_filter, container, false);
         totalCasesGreaterThan = currentView.findViewById(R.id.total_cases_greaterthan_id);
         getTotalCasesLessthan = currentView.findViewById(R.id.total_cases_lessthan_id);

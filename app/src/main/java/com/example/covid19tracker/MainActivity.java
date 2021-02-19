@@ -3,7 +3,10 @@ package com.example.covid19tracker;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
 import androidx.core.app.ActivityCompat;
+import androidx.core.view.MenuCompat;
+import androidx.core.view.MenuItemCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -18,6 +21,8 @@ import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -62,12 +67,15 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
     private int LOCATION_REQUEST_CODE = 10001;
     private static final String TAG = "MainActivity";
 
+    //searchTagHiding
+    private MenuItem menuItem;
+
 
     private TextView confirmed, recovered, deceased;
     private ProgressBar progressBar;
     private FloatingActionButton floatingActionButton;
     private List<Country> countryList = new ArrayList<>();
-    private List<Country> backUpCountryList = countryList;
+    private List<Country> backUpCountryList = new ArrayList<>(countryList);
 
     //Location
     private FusedLocationProviderClient fusedLocationProviderClient;
@@ -97,7 +105,6 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
         bar.setBackgroundDrawable(new ColorDrawable(Color.parseColor("#1e1e30")));
 
 
-
         confirmed = (TextView) findViewById(R.id.confirm_id);
         recovered = (TextView) findViewById(R.id.recovered_id);
         deceased = (TextView) findViewById(R.id.deceased_id);
@@ -125,22 +132,25 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
 
         getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.container, countryListFragment,"CountryList")
+                .replace(R.id.container, countryListFragment, "CountryList")
                 .commit();
 
 
         floatingActionButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                //*//
+                countryList = new ArrayList<>(backUpCountryList);
                 Log.d(TAG, "onClick: Clicked " + countryList.size());
                 Log.d(TAG, "onClick: Clicked ");
-                countryList = backUpCountryList;
+                countryListFragment.setProperData(backUpCountryList);
+
                 getSupportFragmentManager()
                         .beginTransaction()
-                        .replace(R.id.main_container, filterFragment,"FilterList")
+                        .replace(R.id.main_container, filterFragment, "FilterList")
                         .addToBackStack("FilterList")
                         .commit();
-                setTitleBasedOnCurrentFragment("Filters",false);
+                setTitleBasedOnCurrentFragment("Filters", false);
             }
         });
 
@@ -228,6 +238,27 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
         }, 120000);
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.search_menu_layout, menu);
+        menuItem = menu.findItem(R.id.search_menu);
+        androidx.appcompat.widget.SearchView searchView = (androidx.appcompat.widget.SearchView) MenuItemCompat.getActionView(menuItem);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                resetFilterIndicators();
+//                setFilterIndicatorsBasedOnFilters(new ArrayList<String>(Collections.singleton("Country")));
+                Log.d(TAG, "onQueryTextChange: " + newText);
+                countryListFragment.searchViewSetter(newText);
+                return false;
+            }
+        });
+        return super.onCreateOptionsMenu(menu);
+    }
 
     void apiCall() {
 
@@ -245,15 +276,16 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
                         String confirmedCases = String.valueOf((global.getTotalConfirmed() == null) ? "NA" : global.getTotalConfirmed());
                         String recoveredCases = String.valueOf((global.getTotalRecovered() == null) ? "NA" : global.getTotalRecovered());
                         String deathCases = String.valueOf((global.getTotalDeaths() == null) ? "NA" : global.getTotalDeaths());
-                        if(!confirmedCases.equals("NA"))     confirmed.setText(confirmedCases);
-                        if(!recoveredCases.equals("NA"))     recovered.setText(recoveredCases);
-                        if(!deathCases.equals("NA"))     deceased.setText(deathCases);
+                        if (!confirmedCases.equals("NA")) confirmed.setText(confirmedCases);
+                        if (!recoveredCases.equals("NA")) recovered.setText(recoveredCases);
+                        if (!deathCases.equals("NA")) deceased.setText(deathCases);
                     }
                     if (countries != null && !countries.isEmpty()) {
                         progressBar.setVisibility(View.GONE);
                         that.countryList = countries;
-                        that.backUpCountryList = countryList;
-
+                        that.backUpCountryList = new ArrayList<>(countryList);
+                        resetFilterIndicators();
+                        setFilterIndicatorsBasedOnFilters(Collections.singletonList("TotalCases"));
                         Log.i("#Main", "Countries : " + that.countryList.size());
                         countryListFragment.setCountryList(countries);
                         countryListFragment.notifyAdapter();
@@ -368,10 +400,10 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
     @Override
     protected void onResume() {
         super.onResume();
-        setTitleBasedOnCurrentFragment("Covid19Tracker",true);
+        setTitleBasedOnCurrentFragment("Covid19Tracker", true);
     }
 
-    void updateCountryListFragmentAdapterWithFilteredData(List<Country> argCountryList){
+    void updateCountryListFragmentAdapterWithFilteredData(List<Country> argCountryList) {
         countryListFragment.setData(argCountryList);
         countryListFragment.notifyAdapter();
     }
@@ -380,17 +412,18 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
     public void onClickFilter(SingleCaseFilter singleCaseFilter) {
 
         List<Country> filterCountryList = singleCaseFilter.applyFilter(countryList);
-        singleCaseFilter.setButtonStateHandlerOptimized(ButtonStateHandlerOptimized.getInstance(false,singleCaseFilter.getSingleFilter()));
-        singleCaseFilter.setDefaultFilterOrder(filterCountryList,"DESC");
+        singleCaseFilter.setButtonStateHandlerOptimized(ButtonStateHandlerOptimized.getInstance(false, singleCaseFilter.getSingleFilter()));
+        singleCaseFilter.setDefaultFilterOrder(filterCountryList, "DESC");
         Toast.makeText(this, "After Filtering Size : " + filterCountryList.size(), Toast.LENGTH_SHORT).show();
 
 
         countryList = filterCountryList;
 
         updateCountryListFragmentAdapterWithFilteredData(filterCountryList);
-        List<String> list = new ArrayList<>();  list.add(singleCaseFilter.getSingleFilter());
+        List<String> list = new ArrayList<>();
+        list.add(singleCaseFilter.getSingleFilter());
         setFilterIndicatorsBasedOnFilters(list);
-        setTitleBasedOnCurrentFragment("Covid19Tracker",true);
+        setTitleBasedOnCurrentFragment("Covid19Tracker", true);
 
         getSupportFragmentManager().popBackStackImmediate();    //to retrive previous frame
     }
@@ -407,6 +440,9 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
             case "TotalDeaths":
                 ascTotalDeath.setVisibility(View.VISIBLE);
                 return;
+            case "Country":
+                descCountry.setVisibility(View.VISIBLE);
+                return;
             default:
                 ascTotalDeath.setVisibility(View.VISIBLE);
                 ascTotalRecovered.setVisibility(View.VISIBLE);
@@ -418,19 +454,19 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
 
     @Override
     public void onClickClose() {
-        setTitleBasedOnCurrentFragment("Covid19Tracker",true);
+        setTitleBasedOnCurrentFragment("Covid19Tracker", true);
         getSupportFragmentManager().popBackStackImmediate();    //to retrive previous frame
     }
 
     @Override
     public void onClickReset() {
-        countryList = backUpCountryList;
+        countryList = new ArrayList<>(backUpCountryList);
         countryListFragment.notifyAdapter();
     }
 
-    private void setFilterIndicatorsBasedOnFilters(List<String> filters){
+    private void setFilterIndicatorsBasedOnFilters(List<String> filters) {
         resetFilterIndicators();        // removing existing filters
-        for(String s : filters){
+        for (String s : filters) {
             setImageView(s);
         }
     }
@@ -441,23 +477,26 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
         List<Country> filterList = mutliCaseFilters.applyFilter(countryList);
         mutliCaseFilters.addButtonStateHandlerOptimized();
         mutliCaseFilters.setAppropriateFilters();
-        mutliCaseFilters.setDefaultFilterOrder(filterList,"DESC");
+        mutliCaseFilters.setDefaultFilterOrder(filterList, "DESC");
 
         countryList = filterList;
         Toast.makeText(this, "After Filtering Size : " + filterList.size(), Toast.LENGTH_SHORT).show();
 
         updateCountryListFragmentAdapterWithFilteredData(countryList);
         setFilterIndicatorsBasedOnFilters(mutliCaseFilters.getFilter());
-        setTitleBasedOnCurrentFragment("Covid19Tracker",true);
+        setTitleBasedOnCurrentFragment("Covid19Tracker", true);
         getSupportFragmentManager().popBackStackImmediate();    //to retrive previous frame
 
     }
 
-    private void setTitleBasedOnCurrentFragment(String title,boolean isFloatingActionButtonVisible){
-        if(isFloatingActionButtonVisible){
+    private void setTitleBasedOnCurrentFragment(String title, boolean isFloatingActionButtonVisible) {
+        if (isFloatingActionButtonVisible) {
+            if (menuItem != null) menuItem.setVisible(true);
             floatingActionButton.setVisibility(View.VISIBLE);
             setTitle(title);
-        }else{
+        } else {
+            if (menuItem != null) menuItem.setVisible(false);
+            Log.i("This"," shoudn't be there!");
             floatingActionButton.setVisibility(View.GONE);
             setTitle(title);
         }
@@ -470,11 +509,11 @@ public class MainActivity extends AppCompatActivity implements FilterFragment.Fi
         Fragment fragment1 = getSupportFragmentManager().findFragmentById(R.id.main_container);
         Fragment fragment2 = getSupportFragmentManager().findFragmentById(R.id.container);
 
-        if(fragment2 != null && fragment2 instanceof CountryListFragment){
-            setTitleBasedOnCurrentFragment("Covid19Tracker",true);
+        if (fragment2 != null && fragment2 instanceof CountryListFragment) {
+            setTitleBasedOnCurrentFragment("Covid19Tracker", true);
         }
-        if(fragment1 != null && fragment1 instanceof FilterFragment){
-            setTitleBasedOnCurrentFragment("Filters",false);
+        if (fragment1 != null && fragment1 instanceof FilterFragment) {
+            setTitleBasedOnCurrentFragment("Filters", false);
         }
     }
 }

@@ -3,10 +3,13 @@ package com.example.covid19tracker.Adapters;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -16,6 +19,7 @@ import com.example.covid19tracker.Model.Country;
 import com.example.covid19tracker.Model.Global;
 import com.example.covid19tracker.R;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -24,8 +28,10 @@ import java.util.List;
 
 
 
-public class CovidRecycleAdapter extends RecyclerView.Adapter<CovidRecycleAdapter.CovidViewHolder> {
+public class CovidRecycleAdapter extends RecyclerView.Adapter<CovidRecycleAdapter.CovidViewHolder> implements Filterable {
     private List<Country> countryList;
+    private List<Country> countryListFull;
+
     private Activity activity;
 
     public void setCountryName(String countryName) {
@@ -37,11 +43,13 @@ public class CovidRecycleAdapter extends RecyclerView.Adapter<CovidRecycleAdapte
 
     public CovidRecycleAdapter(List<Country> countryList, Activity activity) {
         this.countryList = countryList;
+        this.countryListFull = new ArrayList<>();
         this.activity = activity;
     }
 
     private void setInitialData(List<Country> tempCountryList){
         this.countryList = tempCountryList;
+        this.countryListFull = new ArrayList<>(countryList);
         Collections.sort(countryList, new Comparator<Country>() {
             @Override
             public int compare(Country o1, Country o2) {
@@ -54,6 +62,40 @@ public class CovidRecycleAdapter extends RecyclerView.Adapter<CovidRecycleAdapte
         setUserToTop();
         notifyDataSetChanged();
     }
+
+
+    @Override
+    public Filter getFilter() {
+        return covidFilter;
+    }
+
+    private Filter covidFilter = new Filter() {
+        @Override
+        protected FilterResults performFiltering(CharSequence constraint) {
+            List<Country> currentFiler = new ArrayList<>();
+            if(TextUtils.isEmpty(constraint) || constraint == null || constraint.length() == 0){
+                currentFiler.addAll(countryListFull);
+            }else{
+                String filterPattern = constraint.toString().toLowerCase().trim();
+                for(Country country : countryListFull){
+                    if(country.getCountry().toLowerCase().contains(filterPattern)){
+                        currentFiler.add(country);
+                    }
+                }
+            }
+
+            FilterResults filterResults = new FilterResults();
+            filterResults.values = currentFiler;
+
+            return filterResults;
+        }
+        @Override
+        protected void publishResults(CharSequence constraint, FilterResults results) {
+            countryList.clear();
+            countryList.addAll((List)results.values);
+            notifyDataSetChanged();
+        }
+    };
 
     class CovidViewHolder extends RecyclerView.ViewHolder {
         public TextView country, deaths, recovery, totalCases;
@@ -142,6 +184,10 @@ public class CovidRecycleAdapter extends RecyclerView.Adapter<CovidRecycleAdapte
         return idx;
     }
 
+    public void setProperData(List<Country> countryList){
+        this.countryList = new ArrayList<>(countryList);
+        this.countryListFull = new ArrayList<>(countryList);
+    }
 
     @Override
     public int getItemCount() {
